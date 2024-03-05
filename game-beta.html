@@ -1,0 +1,233 @@
+<html>
+<head>
+	<title>Tic Tac Toe</title>
+	<style>
+        table{
+            display:inline-block;
+        }
+        table, tr, td{
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        td{
+            width:40px;
+            height: 40px;
+            text-align: center;
+        }
+	</style>
+</head>
+<body>
+<p id="myp"></p>
+</body>
+<script>
+    class Game{
+        constructor(dim, size){
+            this.id = "jimmy";
+            this.dim = dim;
+            this.size = size;
+            this.board = new Board(this,this.dim,this.size);
+            document.body.appendChild(this.board.data);
+            this.gameArray = new GameArray(this,this.dim,this.size);
+        }
+    }
+    class Board {
+        constructor(game,dim,size){
+            this.game = game;
+            this.dim = dim;
+            this.size = size;
+            this.data = this.makeBoard();
+            this.letters = ["X","O"];
+            this.letterIndex = 0;
+        }
+        makeBoard(){
+            function generateBoard(size,index,thisBoard){
+                var board = document.createElement("table");
+                board.id = index;
+                for(var i=0;i<size;i++){
+                    var row = document.createElement("tr");
+                    row.id = index + i;
+                    for(let j=0;j<size;j++){
+                        var space = document.createElement("td");
+                        space.id=index+i+j;
+                        space.board = thisBoard;
+                        space.paths = [];
+                        space.onclick = function(){this.board.clicker(this)};
+                        //space.onmouseover = function(){this.board.onmouseoverer(this)};
+                        row.appendChild(space);
+                    }
+                    board.appendChild(row);
+                }
+                return board;
+            }
+            function generateBoardSet(size,dim,index,thisBoard){
+                if(dim == 2){
+                    return generateBoard(size,index,thisBoard)
+                }
+                var boardSet = document.createElement("div");
+                boardSet.id = index;
+                for(var i=0;i<size;i++){
+                    boardSet.appendChild(generateBoardSet(size,dim-1,index+i,thisBoard));
+                }
+                return boardSet;
+
+            }
+            return generateBoardSet(this.size,this.dim,"",this);
+        }
+        clicker(elem){
+            if(elem.textContent==""){
+                elem.textContent = this.letters[++this.letterIndex%2];
+                this.game.gameArray.insert(elem.id,this.letterIndex%2*this.size+1);
+                if(this.game.gameArray.checkforWin(elem.paths)){
+                    window.alert(this.letters[this.letterIndex%2]+" Wins!!!");
+                };
+            }
+        }
+        onmouseoverer(elem){
+            document.getElementById("myp").textContent = elem.id;
+        }
+        savePaths(paths){
+            for(var i=0;i<paths.length;i++){
+                var start = paths[i][0];
+                var end = paths[i][1];
+                var change = new Array(start.length);
+                change.fill(0);
+                for(var j=0;j<start.length;j++){
+                    change[j] = (end[j]-start[j])/(this.size-1)
+                }
+                for(var j=0;j<this.size;j++){
+                    var placeToTest = start.slice();
+                    for(var k=0;k<this.dim;k++){
+                        placeToTest[k]+=change[k]*j;
+                    }
+                    var place = placeToTest.toString().replaceAll(",","");
+                    document.getElementById(place).paths.push(paths[i]);
+                }
+            }
+        }
+    }
+
+    class GameArray {
+        constructor(game,dim,size){
+            this.game = game;
+            this.dim = dim;
+            this.size = size;
+            this.data = this.makeArray();
+            this.winPaths = this.makeWinPaths();
+            this.game.board.savePaths(this.winPaths);
+        }
+        makeArray(){
+            function makeArrayR(size,dim){
+                var data = new Array(size);
+                if(dim==1){
+                    return data.fill(0);
+                }
+                for(var i=0;i<data.length;i++){
+                    data[i]=makeArrayR(size,dim-1).slice();
+                }
+                return data;
+            }
+            return makeArrayR(this.size,this.dim);
+        }
+        insert(place,value){
+            var codeToRun = "this.data"
+            while(place.length){
+                codeToRun += "["+place.slice(0,1)+"]";
+                place = place.slice(1);
+            }
+            codeToRun += "="+value;
+            eval(codeToRun);
+        }
+        read(place){
+            var codeToRun = "this.data"
+            while(place.length){
+                codeToRun += "["+place.slice(0,1)+"]";
+                place = place.slice(1);
+            }
+            return eval(codeToRun);
+        }
+        makeWinPaths(){
+            function getLowerDimSpacesR(dim,size){
+                var spaces = [];
+                if(dim == 0){
+                    return [[]];
+                }
+                var lowerDimSpaces = getLowerDimSpacesR(dim-1,size);
+                for(var i=0;i<size;i++){
+                    for(var j=0;j<lowerDimSpaces.length;j++){
+                        var space = lowerDimSpaces[j].slice();
+                        space.splice(0,0,i);
+                        spaces.push(space);
+                    }
+                }
+                return spaces;
+            }
+            function getLowerDiagonalsR(spaces,diagDim,dim,size,index){
+                var paths = []
+                if(diagDim == 1){
+                    for(var i=0;i<spaces.length;i++){
+                        for(var j=index;j<spaces[0].length+1;j++){
+                            var start = spaces[i].slice();
+                            var end = spaces[i].slice();
+                            start.splice(j,0,0);
+                            end.splice(j,0,size-1);
+                            paths.push([start,end]);
+                        }
+                    }
+                    return paths;
+                }
+                for(var i=index;i<dim-diagDim+1;i++){
+                    var lowerDimPaths = getLowerDiagonalsR(spaces,diagDim-1,dim,size,i);
+                    for(var j=0;j<lowerDimPaths.length;j++){
+                        var path1 = [lowerDimPaths[j][0].slice(),lowerDimPaths[j][1].slice()];
+                        var path2 = [lowerDimPaths[j][0].slice(),lowerDimPaths[j][1].slice()];
+                        path1[0].splice(i,0,0);
+                        path1[1].splice(i,0,size-1);
+                        path2[0].splice(i,0,size-1);
+                        path2[1].splice(i,0,0);
+                        paths.push(path1,path2);
+                    }
+                }
+                return paths;
+            }
+            var paths = [];
+            for(var i=1;i<=this.dim;i++){
+                var spaces = getLowerDimSpacesR(this.dim-i,this.size);
+                var newPaths = getLowerDiagonalsR(spaces,i,this.dim,this.size,0);
+                paths = paths.concat(newPaths);
+            }
+            return paths;
+        }
+        checkforWin(paths){
+            for(var i=0;i<paths.length;i++){
+                if(this.checkPath(paths[i])){
+                    return true;
+                }
+            }
+            return false;
+        }
+        checkPath(path){
+            var start = path[0];
+            var end = path[1];
+            var change = new Array(start.length);
+            change.fill(0);
+            for(var i=0;i<start.length;i++){
+                change[i] = (end[i]-start[i])/(this.size-1)
+            }
+            var rowSum = 0;
+            for(var i=0;i<this.size;i++){
+                var placeToTest = start.slice();
+                for(var j=0;j<this.dim;j++){
+                    placeToTest[j]+=change[j]*i;
+                }
+                var place = placeToTest.toString().replaceAll(",","");
+                rowSum += this.read(place);
+            }
+            if(rowSum==this.size||rowSum==(this.size+1)*this.size){
+                return true;
+            }
+            return false;
+        }
+    }
+    var game = new Game(3,4);
+</script>
+</html>

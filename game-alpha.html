@@ -1,0 +1,279 @@
+<html>
+<head>
+	<title>Tic Tac Toe</title>
+	<style>
+        table{
+            display:inline-block;
+        }
+        table, tr, td{
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        td{
+            width:40px;
+            height: 40px;
+            text-align: center;
+        }
+	</style>
+</head>
+<body>
+<p id="myp"></p>
+</body>
+<script>
+    class Game{
+        constructor(dim, size){
+            this.id = "jimmy";
+            this.dim = dim;
+            this.size = size;
+            this.gameArray = new GameArray(this,this.dim,this.size);
+            this.board = new Board(this,this.dim,this.size);
+        }
+    }
+    class Board {
+        constructor(game,dim,size){
+            this.game = game;
+            this.dim = dim;
+            this.size = size;
+            this.data = this.makeBoard();
+            this.letters = ["X","O"];
+            this.letterIndex = 0;
+        }
+        makeBoard(){
+            function generateBoard(size,index,thisBoard){
+                var board = document.createElement("table");
+                board.id = index;
+                for(var i=0;i<size;i++){
+                    var row = document.createElement("tr");
+                    row.id = index + i;
+                    for(let j=0;j<size;j++){
+                        var space = document.createElement("td");
+                        space.id=index+i+j;
+                        space.board = thisBoard;
+                        space.onclick = function(){this.board.clicker(this)};
+                        //space.onmouseover = function(){this.board.onmouseoverer(this)};
+                        row.appendChild(space);
+                    }
+                    board.appendChild(row);
+                }
+                return board;
+            }
+            function generateBoardSet(size,dim,index,thisBoard){
+                if(dim == 2){
+                    return generateBoard(size,index,thisBoard)
+                }
+                var boardSet = document.createElement("div");
+                boardSet.id = index;
+                for(var i=0;i<size;i++){
+                    boardSet.appendChild(generateBoardSet(size,dim-1,index+i,thisBoard));
+                }
+                return boardSet;
+
+            }
+            return generateBoardSet(this.size,this.dim,"",this);
+        }
+        clicker(elem){
+            if(elem.textContent==""){
+                elem.textContent = this.letters[++this.letterIndex%2];
+                this.game.gameArray.insert(elem.id,this.letterIndex%2*this.size+1);
+                if(this.game.gameArray.checkforWin(elem.id)){
+                    window.alert(this.letters[this.letterIndex%2]+" Wins!!!");
+                };
+            }
+        }
+        onmouseoverer(elem){
+            document.getElementById("myp").textContent = elem.id;
+        }
+    }
+
+    class GameArray {
+        constructor(game,dim,size){
+            this.game = game;
+            this.dim = dim;
+            this.size = size;
+            this.data = this.makeArray();
+        }
+        makeArray(){
+            function makeArrayR(size,dim){
+                var data = new Array(size);
+                if(dim==1){
+                    return data.fill(0);
+                }
+                for(var i=0;i<data.length;i++){
+                    data[i]=makeArrayR(size,dim-1).slice();
+                }
+                return data;
+            }
+            return makeArrayR(this.size,this.dim);
+        }
+        insert(place,value){
+            var codeToRun = "this.data"
+            while(place.length){
+                codeToRun += "["+place.slice(0,1)+"]";
+                place = place.slice(1);
+            }
+            codeToRun += "="+value;
+            eval(codeToRun);
+        }
+        read(place){
+            var codeToRun = "this.data"
+            while(place.length){
+                codeToRun += "["+place.slice(0,1)+"]";
+                place = place.slice(1);
+            }
+            return eval(codeToRun);
+        }
+        checkforWin(place){
+            var coords = place.split("").map(Number);
+            var maxval = this.size-1;
+            //check for win along a column/row
+            for(var i=0;i<this.dim;i++){
+                var sum = 0;
+                for(var j=0;j<this.size;j++){
+                    sum += this.read(place.slice(0,i)+j+place.slice(i+1))
+                }
+                if(sum==this.size||sum==(this.size+1)*this.size){
+                    return true;
+                }
+            }
+
+            //check diagonals
+            for(var i=0;i<coords.length-1;i++){
+                var value = coords[i];
+                var alikeValues = [i];
+                var middleValues = [i];
+                var plusOrMinus = new Array(coords.length);
+                plusOrMinus.fill(0);
+                for(var j=i+1;j<coords.length;j++){
+                    if(coords[i]==coords[j]&&coords[i]==maxval-coords[j]){//if it in the middle of a diagonal
+                        middleValues.push(j);
+                    }
+                    else if(coords[i]==coords[j]){//if it is in a positive diagonal
+                        alikeValues.push(j);
+                    }
+                    else if(coords[i]==maxval-coords[j]){//if it is in a negative diagonal
+                        alikeValues.push(j);
+                        plusOrMinus[j] = 1
+                    }
+                }
+                //console.log("A", i, alikeValues);
+                var totalPaths = [];
+
+                //positive or negative diagonals
+                if(alikeValues.length>1){
+                    var combos = getCombinations(alikeValues);//all the different diagonal directions
+                    var paths = [];
+                    for(var j=0;j<combos.length;j++){
+                        var path = [coords.slice(),coords.slice()];
+                        for(var k=0;k<combos[j].length;k++){
+                                path[0][combos[j][k]]-=value-2*value*plusOrMinus[combos[j][k]];
+                                path[1][combos[j][k]]+=maxval-value-2*(maxval-value)*plusOrMinus[combos[j][k]];
+                        }
+                        paths.push(path);
+                    }
+                    totalPaths = totalPaths.concat(paths);
+                }
+
+                //middle diagonals
+                if(middleValues.length>1){
+                    var combos=getCombinations(middleValues);
+                    var paths = [];
+                    for(var j=0;j<combos.length;j++){
+                        function middleComboR(comboR){//recursively get 2^n diagonals 
+                            if(comboR.length == 2){//both if in two dimensions
+                                var path1 = [coords.slice(),coords.slice()];
+                                var path2 = [coords.slice(),coords.slice()];
+                                path1[0][comboR[0]]-=value;
+                                path1[1][comboR[0]]+=value;
+                                path1[0][comboR[1]]-=value;
+                                path1[1][comboR[1]]+=value;
+                                path2[0][comboR[0]]-=value;
+                                path2[1][comboR[0]]+=value;
+                                path2[0][comboR[1]]+=value;
+                                path2[1][comboR[1]]-=value;
+                                return [path1,path2];
+                            }
+                            var lowerDimPaths = middleComboR(comboR.slice(1));
+                            var thisDim = comboR[0];
+                            var thisDimPaths = [];
+                            for(k=0;k<lowerDimPaths.length;k++){
+                                var path1 = [lowerDimPaths[k][0].slice(),lowerDimPaths[k][1].slice()];
+                                var path2 = [lowerDimPaths[k][0].slice(),lowerDimPaths[k][1].slice()];
+                                path1[0][thisDim]-=value;
+                                path1[1][thisDim]+=value;
+                                path2[0][thisDim]+=value;
+                                path2[1][thisDim]-=value;
+                                thisDimPaths.push(path1,path2);
+                            }
+                            return thisDimPaths;
+                        }
+                        paths = paths.concat(middleComboR(combos[j]))
+                    }
+                    totalPaths = totalPaths.concat(paths);
+                }
+                //check all the possible paths
+                for(var j=0;j<totalPaths.length;j++){
+                    if(this.checkPath(totalPaths[j])){
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        checkPath(path){
+            var start = path[0];
+            var end = path[1];
+            var change = new Array(start.length);
+            change.fill(0);
+            for(var i=0;i<start.length;i++){
+                change[i] = (end[i]-start[i])/(this.size-1)
+            }
+            //console.log(start,end,change);
+            var rowSum = 0;
+            for(var i=0;i<this.size;i++){
+                var placeToTest = start.slice();
+                for(var j=0;j<this.dim;j++){
+                    placeToTest[j]+=change[j]*i;
+                }
+                //console.log(placeToTest)
+                var place = placeToTest.toString().replaceAll(",","");
+                //console.log("q", place, this.read(place));
+                rowSum += this.read(place);
+            }
+            //console.log("P",rowSum);
+            if(rowSum==this.size||rowSum==(this.size+1)*this.size){
+                return true;
+            }
+            return false;
+        }
+    }
+    function getCombinations(lst){
+        if(lst.length<2){
+            return [];
+        }
+        function getCombinationsR(lstR){
+            if(lstR.length==2){
+                return [];
+            }
+            combinations = []
+            for(var i=0;i<lstR.length;i++){
+                var newLst = lstR.slice(0,i).concat(lstR.slice(i+1));
+                combinations.push(newLst);
+                combinations = combinations.concat(getCombinationsR(newLst));
+            }
+            return combinations;
+        }
+        result = getCombinationsR(lst);
+        for(var i=0;i<result.length;i++){
+            for(var j=i+1;j<result.length;j++){
+                if(result[i].toString()==result[j].toString()){
+                    result.splice(j,1);
+                }
+            }
+        }
+        result.push(lst);
+        return result;
+    }
+    var game = new Game(7,6);
+    document.body.appendChild(game.board.data);
+</script>
+</html>
